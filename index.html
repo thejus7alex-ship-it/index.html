@@ -248,7 +248,10 @@
             joystickThumb.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
 
             // Determine direction based on angle - ONLY if game is running
-            if (distance > 30 && player && !document.getElementById("overlay").style.display || document.getElementById("overlay").style.display === "none") {
+            const overlayDisplay = document.getElementById("overlay").style.display;
+            const gameRunning = overlayDisplay === "" || overlayDisplay === "none";
+            
+            if (distance > 30 && player && gameRunning) {
                 const angle = Math.atan2(deltaY, deltaX);
                 const degrees = (angle * 180 / Math.PI + 360) % 360;
 
