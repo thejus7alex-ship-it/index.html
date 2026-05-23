@@ -37,8 +37,8 @@
         .leaderboard { font-size: 12px; margin-top: 10px; color: #888; }
         .leaderboard-row { display: flex; justify-content: space-between; margin-bottom: 4px; padding: 2px; }
         /* Virtual Joystick */
-        .joystick { position: fixed; left: 20px; bottom: 20px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; touch-action: none; z-index: 1001; }
-        .joystick .thumb { width:44px; height:44px; border-radius:50%; background: rgba(0,255,0,0.9); transform: translate(0,0); transition: transform 0.04s linear; box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+        .joystick { position: fixed; left: 20px; bottom: 20px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0,255,0,0.3); z-index: 100; }
+        .joystick .thumb { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,255,0,0.9); transform: translate(0,0); transition: transform 0.04s linear; box-shadow: 0 4px 12px rgba(0,255,0,0.5); }
     </style>
 </head>
 <body>
@@ -223,6 +223,79 @@
             if (score > highScore) { highScore = score; localStorage.setItem("snakeBest2026", highScore); document.getElementById("best").innerText = highScore.toString().padStart(3, '0'); }
             document.getElementById("endControls").style.display = "block"; 
         }
+
+        // Joystick Control
+        const joystickElement = document.getElementById("joystick");
+        const joystickThumb = document.getElementById("joystickThumb");
+        const joystickRadius = 60;
+        const thumbRadius = 22;
+        let joystickActive = false;
+
+        function handleJoystick(clientX, clientY) {
+            const rect = joystickElement.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let deltaX = clientX - centerX;
+            let deltaY = clientY - centerY;
+            let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            if (distance > joystickRadius) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = Math.cos(angle) * joystickRadius;
+                deltaY = Math.sin(angle) * joystickRadius;
+            }
+
+            joystickThumb.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+            // Determine direction based on angle
+            if (distance > 30 && player) {
+                const angle = Math.atan2(deltaY, deltaX);
+                const degrees = (angle * 180 / Math.PI + 360) % 360;
+
+                if (degrees > 45 && degrees < 135 && player.dir.x === 0) {
+                    player.nextDir = {x: 0, y: gridSize};
+                } else if (degrees > 225 && degrees < 315 && player.dir.x === 0) {
+                    player.nextDir = {x: 0, y: -gridSize};
+                } else if (degrees > 135 && degrees < 225 && player.dir.y === 0) {
+                    player.nextDir = {x: -gridSize, y: 0};
+                } else if ((degrees > 315 || degrees < 45) && player.dir.y === 0) {
+                    player.nextDir = {x: gridSize, y: 0};
+                }
+            }
+        }
+
+        joystickElement.addEventListener("touchstart", (e) => {
+            joystickActive = true;
+            handleJoystick(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        joystickElement.addEventListener("touchmove", (e) => {
+            if (joystickActive) {
+                e.preventDefault();
+                handleJoystick(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        joystickElement.addEventListener("touchend", () => {
+            joystickActive = false;
+            joystickThumb.style.transform = "translate(0, 0)";
+        });
+
+        joystickElement.addEventListener("mousedown", () => {
+            joystickActive = true;
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (joystickActive) {
+                handleJoystick(e.clientX, e.clientY);
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            joystickActive = false;
+            joystickThumb.style.transform = "translate(0, 0)";
+        });
 
         window.addEventListener("keydown", e => {
             const k = e.key;
