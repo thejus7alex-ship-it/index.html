@@ -36,9 +36,12 @@
         .color-box { width: 45px; height: 45px; cursor: pointer; border: 3px solid #fff; border-radius: 6px; }
         .leaderboard { font-size: 12px; margin-top: 10px; color: #888; }
         .leaderboard-row { display: flex; justify-content: space-between; margin-bottom: 4px; padding: 2px; }
-        /* Virtual Joystick */
-        .joystick { position: fixed; left: 20px; bottom: 20px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0,255,0,0.3); z-index: 100; }
-        .joystick .thumb { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,255,0,0.9); transform: translate(0,0); transition: transform 0.04s linear; box-shadow: 0 4px 12px rgba(0,255,0,0.5); }
+        /* Mobile Button Controls */
+        .controls { display: none; gap: 10px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .control-btn { width: 60px; height: 60px; background: rgba(0,255,0,0.3); border: 2px solid #00ff00; border-radius: 8px; color: #00ff00; font-weight: bold; font-size: 20px; cursor: pointer; transition: 0.1s; active: transform 0.05s; }
+        .control-btn:active { background: rgba(0,255,0,0.7); transform: scale(0.95); }
+        .controls.visible { display: flex; }
+        .dpad-row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -59,7 +62,20 @@
                 </div>
             </div>
             <canvas id="gameCanvas" width="600" height="400"></canvas>
-            <div id="joystick" class="joystick" aria-hidden="true"><div id="joystickThumb" class="thumb"></div></div>
+            
+            <!-- Mobile Button Controls -->
+            <div class="controls" id="controls">
+                <div style="width: 100%;"></div>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button class="control-btn" onclick="moveSnake('up')" onmouseenter="playHover()">▲</button>
+                </div>
+                <div class="dpad-row" style="justify-content: center;">
+                    <button class="control-btn" onclick="moveSnake('left')" onmouseenter="playHover()">◄</button>
+                    <button class="control-btn" onclick="moveSnake('down')" onmouseenter="playHover()">▼</button>
+                    <button class="control-btn" onclick="moveSnake('right')" onmouseenter="playHover()">►</button>
+                </div>
+            </div>
+
             <div class="sidebar">
                 <div class="status-box">
                     <h2 style="margin:0; color:#00ff00; font-size: 18px;">SYSTEM DASH</h2>
@@ -111,11 +127,21 @@
             playSfx(250, 'square', 0.3, 0.15);
             document.getElementById("overlay").style.display = "flex"; 
             document.getElementById("endControls").style.display = "none"; 
+            document.getElementById("controls").classList.remove("visible");
         }
 
         function toggleCustomizer() { playSfx(500, 'sine', 0.05); const p = document.getElementById("colorPicker"); p.style.display = (p.style.display === "flex") ? "none" : "flex"; }
         function setPlayerColor(c) { playSfx(700, 'sine', 0.05); selectedColor = c; }
         function spawnFood() { return { x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize, y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize }; }
+
+        function moveSnake(direction) {
+            if (!player) return;
+            playSfx(600, 'sine', 0.05);
+            if (direction === 'up' && player.dir.y === 0) player.nextDir = {x: 0, y: -gridSize};
+            if (direction === 'down' && player.dir.y === 0) player.nextDir = {x: 0, y: gridSize};
+            if (direction === 'left' && player.dir.x === 0) player.nextDir = {x: -gridSize, y: 0};
+            if (direction === 'right' && player.dir.x === 0) player.nextDir = {x: gridSize, y: 0};
+        }
 
         function startGame(mode) {
             if(!audioCtx) audioCtx = new AudioContext();
@@ -123,6 +149,7 @@
             score = 0;
             document.getElementById("overlay").style.display = "none";
             document.getElementById("endControls").style.display = "none";
+            document.getElementById("controls").classList.add("visible");
             player = { body: [{x:100, y:100}, {x:90, y:100}], dir: {x:gridSize, y:0}, nextDir: {x:gridSize, y:0}, color: selectedColor };
             enemies = [
                 { name: "BOT_RED", color: "#ff4444", body: [], dir: {x:gridSize, y:0}, score: 50 },
@@ -224,98 +251,17 @@
             document.getElementById("endControls").style.display = "block"; 
         }
 
-        // Joystick Control
-        const joystickElement = document.getElementById("joystick");
-        const joystickThumb = document.getElementById("joystickThumb");
-        const joystickRadius = 60;
-        let joystickActive = false;
-
-        function handleJoystick(clientX, clientY) {
-            const rect = joystickElement.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            let deltaX = clientX - centerX;
-            let deltaY = clientY - centerY;
-            let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            if (distance > joystickRadius) {
-                const angle = Math.atan2(deltaY, deltaX);
-                deltaX = Math.cos(angle) * joystickRadius;
-                deltaY = Math.sin(angle) * joystickRadius;
-            }
-
-            joystickThumb.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-
-            // Determine direction based on angle - ONLY if game is running
-            const overlayDisplay = document.getElementById("overlay").style.display;
-            const gameRunning = overlayDisplay === "" || overlayDisplay === "none";
-            
-            if (distance > 30 && player && gameRunning) {
-                const angle = Math.atan2(deltaY, deltaX);
-                const degrees = (angle * 180 / Math.PI + 360) % 360;
-
-                // Down (45-135 degrees)
-                if (degrees > 45 && degrees < 135) {
-                    if (player.dir.y === 0) player.nextDir = {x: 0, y: gridSize};
-                }
-                // Up (225-315 degrees)
-                else if (degrees > 225 && degrees < 315) {
-                    if (player.dir.y === 0) player.nextDir = {x: 0, y: -gridSize};
-                }
-                // Left (135-225 degrees)
-                else if (degrees > 135 && degrees < 225) {
-                    if (player.dir.x === 0) player.nextDir = {x: -gridSize, y: 0};
-                }
-                // Right (315-45 degrees)
-                else if ((degrees > 315 || degrees < 45)) {
-                    if (player.dir.x === 0) player.nextDir = {x: gridSize, y: 0};
-                }
-            }
-        }
-
-        joystickElement.addEventListener("touchstart", (e) => {
-            joystickActive = true;
-            handleJoystick(e.touches[0].clientX, e.touches[0].clientY);
-        });
-
-        joystickElement.addEventListener("touchmove", (e) => {
-            if (joystickActive) {
-                e.preventDefault();
-                handleJoystick(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        });
-
-        joystickElement.addEventListener("touchend", () => {
-            joystickActive = false;
-            joystickThumb.style.transform = "translate(0, 0)";
-        });
-
-        joystickElement.addEventListener("mousedown", () => {
-            joystickActive = true;
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (joystickActive) {
-                handleJoystick(e.clientX, e.clientY);
-            }
-        });
-
-        document.addEventListener("mouseup", () => {
-            joystickActive = false;
-            joystickThumb.style.transform = "translate(0, 0)";
-        });
-
+        // Keyboard Controls
         window.addEventListener("keydown", e => {
             const k = e.key;
-            if(k === "ArrowUp" && player.dir.y === 0) player.nextDir = {x:0, y:-gridSize};
-            if(k === "ArrowDown" && player.dir.y === 0) player.nextDir = {x:0, y:gridSize};
-            if(k === "ArrowLeft" && player.dir.x === 0) player.nextDir = {x:-gridSize, y:0};
-            if(k === "ArrowRight" && player.dir.x === 0) player.nextDir = {x:gridSize, y:0};
-            if(k === "w" && player.dir.y === 0) player.nextDir = {x:0, y:-gridSize};
-            if(k === "s" && player.dir.y === 0) player.nextDir = {x:0, y:gridSize};
-            if(k === "a" && player.dir.x === 0) player.nextDir = {x:-gridSize, y:0};
-            if(k === "d" && player.dir.x === 0) player.nextDir = {x:gridSize, y:0};
+            if(k === "ArrowUp" && player && player.dir.y === 0) player.nextDir = {x:0, y:-gridSize};
+            if(k === "ArrowDown" && player && player.dir.y === 0) player.nextDir = {x:0, y:gridSize};
+            if(k === "ArrowLeft" && player && player.dir.x === 0) player.nextDir = {x:-gridSize, y:0};
+            if(k === "ArrowRight" && player && player.dir.x === 0) player.nextDir = {x:gridSize, y:0};
+            if(k === "w" && player && player.dir.y === 0) player.nextDir = {x:0, y:-gridSize};
+            if(k === "s" && player && player.dir.y === 0) player.nextDir = {x:0, y:gridSize};
+            if(k === "a" && player && player.dir.x === 0) player.nextDir = {x:-gridSize, y:0};
+            if(k === "d" && player && player.dir.x === 0) player.nextDir = {x:gridSize, y:0};
         });
     </script>
 </body>
