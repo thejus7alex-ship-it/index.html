@@ -228,7 +228,6 @@
         const joystickElement = document.getElementById("joystick");
         const joystickThumb = document.getElementById("joystickThumb");
         const joystickRadius = 60;
-        const thumbRadius = 22;
         let joystickActive = false;
 
         function handleJoystick(clientX, clientY) {
@@ -248,19 +247,26 @@
 
             joystickThumb.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
 
-            // Determine direction based on angle
-            if (distance > 30 && player) {
+            // Determine direction based on angle - ONLY if game is running
+            if (distance > 30 && player && !document.getElementById("overlay").style.display || document.getElementById("overlay").style.display === "none") {
                 const angle = Math.atan2(deltaY, deltaX);
                 const degrees = (angle * 180 / Math.PI + 360) % 360;
 
-                if (degrees > 45 && degrees < 135 && player.dir.x === 0) {
-                    player.nextDir = {x: 0, y: gridSize};
-                } else if (degrees > 225 && degrees < 315 && player.dir.x === 0) {
-                    player.nextDir = {x: 0, y: -gridSize};
-                } else if (degrees > 135 && degrees < 225 && player.dir.y === 0) {
-                    player.nextDir = {x: -gridSize, y: 0};
-                } else if ((degrees > 315 || degrees < 45) && player.dir.y === 0) {
-                    player.nextDir = {x: gridSize, y: 0};
+                // Down (45-135 degrees)
+                if (degrees > 45 && degrees < 135) {
+                    if (player.dir.y === 0) player.nextDir = {x: 0, y: gridSize};
+                }
+                // Up (225-315 degrees)
+                else if (degrees > 225 && degrees < 315) {
+                    if (player.dir.y === 0) player.nextDir = {x: 0, y: -gridSize};
+                }
+                // Left (135-225 degrees)
+                else if (degrees > 135 && degrees < 225) {
+                    if (player.dir.x === 0) player.nextDir = {x: -gridSize, y: 0};
+                }
+                // Right (315-45 degrees)
+                else if ((degrees > 315 || degrees < 45)) {
+                    if (player.dir.x === 0) player.nextDir = {x: gridSize, y: 0};
                 }
             }
         }
